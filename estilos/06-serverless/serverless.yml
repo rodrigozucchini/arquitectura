@@ -1,0 +1,14 @@
+# Cómo se declararía en Serverless Framework / AWS (referencia, no se ejecuta localmente)
+service: imagenes
+provider:
+  name: aws
+  runtime: nodejs22.x
+functions:
+  crearImagen:
+    handler: functions/crearImagen.handler
+    events:
+      - httpApi: { path: /imagenes, method: post }
+  generarMiniatura:
+    handler: functions/generarMiniatura.handler
+    events:
+      - s3: { bucket: mis-imagenes, event: "s3:ObjectCreated:*", rules: [{ prefix: uploads/ }] }

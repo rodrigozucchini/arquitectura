@@ -1,0 +1,95 @@
+<!doctype html>
+<!--
+  MVVM (Model - View - ViewModel)
+  - MODEL: datos y lógica de negocio.
+  - VIEWMODEL: estado de la vista + comandos. NO conoce el DOM.
+  - VIEW: el HTML, se conecta al ViewModel mediante DATA BINDING declarativo
+    (atributos data-bind / data-on). Cuando el ViewModel cambia, la View se actualiza sola.
+  Es el patrón detrás de Vue, Angular, Knockout, SwiftUI, Jetpack Compose y WPF.
+
+  Abrir este archivo en el navegador (doble clic) o: npx serve .
+-->
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MVVM</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
+    input { padding: 6px; } li.hecha span { text-decoration: line-through; opacity: .6; }
+  </style>
+</head>
+<body>
+  <!-- ======================= VIEW ======================= -->
+  <h1>Tareas <small>(MVVM)</small></h1>
+  <input data-bind="value:nueva" placeholder="Nueva tarea" />
+  <button data-on="click:agregar" data-bind="disabled:noPuedeAgregar">Agregar</button>
+  <p>Pendientes: <b data-bind="text:pendientes"></b> · <span data-bind="text:mensaje"></span></p>
+  <ul data-bind="list:tareas"></ul>
+
+  <script>
+    // ======================= MODEL =======================
+    const TareaModel = {
+      crear: (titulo) => ({ id: crypto.randomUUID(), titulo: titulo.trim(), hecha: false }),
+      validar: (titulo) => titulo.trim().length >= 3,
+    };
+
+    // =================== MINI MOTOR DE BINDING (lo que da un framework) ===================
+    function observable(obj, alCambiar) {
+      return new Proxy(obj, { set(t, k, v) { t[k] = v; alCambiar(); return true; } });
+    }
+    function bind(vm, root = document) {
+      const render = () => {
+        root.querySelectorAll('[data-bind]').forEach((el) => {
+          const [tipo, prop] = el.dataset.bind.split(':');
+          const valor = vm[prop];
+          if (tipo === 'text') el.textContent = valor;
+          if (tipo === 'value' && el.value !== valor) el.value = valor;
+          if (tipo === 'disabled') el.disabled = valor;
+          if (tipo === 'list') {
+            el.replaceChildren(...valor.map((t) => {
+              const li = document.createElement('li');
+              li.className = t.hecha ? 'hecha' : '';
+              const cb = Object.assign(document.createElement('input'), { type: 'checkbox', checked: t.hecha });
+              cb.onchange = () => vm.alternar(t.id);
+              const span = Object.assign(document.createElement('span'), { textContent: ' ' + t.titulo });
+              li.append(cb, span);
+              return li;
+            }));
+          }
+        });
+      };
+      // Two-way binding: View → ViewModel
+      root.querySelectorAll('[data-bind^="value:"]').forEach((el) =>
+        el.addEventListener('input', () => (vm[el.dataset.bind.split(':')[1]] = el.value)));
+      root.querySelectorAll('[data-on]').forEach((el) => {
+        const [evento, comando] = el.dataset.on.split(':');
+        el.addEventListener(evento, () => vm[comando]());
+      });
+      return render;
+    }
+
+    // ======================= VIEWMODEL =======================
+    // Expone ESTADO + PROPIEDADES DERIVADAS + COMANDOS. Ni una línea toca el DOM.
+    let render = () => {};
+    const vm = observable({
+      nueva: '',
+      tareas: [TareaModel.crear('Entender MVVM')],
+      mensaje: '',
+      get pendientes() { return this.tareas.filter((t) => !t.hecha).length; },
+      get noPuedeAgregar() { return !TareaModel.validar(this.nueva); },
+      agregar() {
+        this.tareas = [...this.tareas, TareaModel.crear(this.nueva)];
+        this.mensaje = `"${this.nueva}" agregada`;
+        this.nueva = '';
+      },
+      alternar(id) {
+        this.tareas = this.tareas.map((t) => (t.id === id ? { ...t, hecha: !t.hecha } : t));
+      },
+    }, () => render());
+
+    render = bind(vm);
+    render();
+  </script>
+</body>
+</html>

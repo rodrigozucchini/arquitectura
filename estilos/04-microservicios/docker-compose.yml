@@ -1,0 +1,15 @@
+# Ejemplo de cómo se desplegaría cada servicio de forma independiente.
+services:
+  usuarios:
+    image: node:24-alpine
+    working_dir: /app
+    volumes: ["./usuarios-service:/app"]
+    command: node index.js
+    environment: { PORT: "4101" }
+  pedidos:
+    image: node:24-alpine
+    working_dir: /app
+    volumes: ["./pedidos-service:/app"]
+    command: node index.js
+    environment: { PORT: "4102", USUARIOS_URL: "http://usuarios:4101" }
+    depends_on: [usuarios]
